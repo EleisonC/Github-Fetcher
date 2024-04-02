@@ -5,7 +5,7 @@ struct Repository {
     name: String,
     full_name: String,
     html_url: String,
-    description: Option<String>,
+    description: String,
 }
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>>{
