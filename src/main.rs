@@ -74,24 +74,32 @@ struct Repository {
     updated_at: Option<String>,
 }
 
-struct Github_Instance {
-    url: String,
+struct GithubInstance {
     token: String,
 }
 
-impl Github_Instance {
-    fn new(url: String, git_token: String) -> Github_Instance {
-        Github_Instance {
-            url: url,
+impl GithubInstance {
+    fn new(git_token: String) -> GithubInstance {
+        GithubInstance {
             token: git_token,
         }
     }
 
     async fn fetch_all_owner_repos(&self) -> Result<Vec<Repository>, reqwest::Error> {
         let client = Client::builder().user_agent("FirstRust").build()?;
-        let response = client.get(&self.url).bearer_auth(&self.token).send().await?;
+        let response = client.get("https://api.github.com/user/repos?type=owner".to_owned()).bearer_auth(&self.token).send().await?;
         let repos: Vec<Repository> = response.json().await?;
         Ok(repos)
+    }
+
+    async fn fetch_specific_repo(&self, repo:String, owner:String) -> Result<Repository, reqwest::Error> {
+        let client = Client::builder().user_agent("FirstRust").build()?;
+        // let owner = "EleisonC".to_string();
+        // let repo = "NestApplication".to_string();
+        let url = format!("https://api.github.com/repos/{owner}/{repo}");
+        let response = client.get(url).bearer_auth(&self.token).send().await?;
+        let repo: Repository = response.json().await?;
+        Ok(repo)
     }
 }
 
@@ -101,13 +109,16 @@ use dotenv_codegen::dotenv;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>>{
     println!("Hello, world!");
-    let github_fetcher = Github_Instance::new(
-        "https://api.github.com/user/repos?type=owner".to_owned(),
+    let github_fetcher = GithubInstance::new(
         dotenv!("GITHUB_TOKEN").to_owned()
     );
     let repos: Vec<Repository> = github_fetcher.fetch_all_owner_repos().await?;
 
+    let owner = "EleisonC".to_string();
+    let repo = "NestApplication".to_string();    
+    let one_repo: Repository = github_fetcher.fetch_specific_repo(repo, owner).await?;
+
     println!("We have over: {:#?}", repos.len());
-    println!("here is the response: {repos:#?}");
+    println!("here is the response: {one_repo:#?}");
     Ok(())
 }
