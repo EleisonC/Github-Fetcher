@@ -74,6 +74,26 @@ struct Repository {
     updated_at: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+struct PullRequest {
+    url: String,
+    id: i64,
+    node_id: String,
+    html_url: String,
+    diff_url: String,
+    patch_url: String,
+    issue_url: String,
+    commits_url: String,
+    review_comments_url: String,
+    review_comment_url: String,
+    comments_url: String,
+    statuses_url: String,
+    number: i32,
+    state: String,
+    locked: bool,
+    title: String,
+    body: Option<String>,
+}
 struct GithubInstance {
     token: String,
 }
@@ -101,6 +121,14 @@ impl GithubInstance {
         let repo: Repository = response.json().await?;
         Ok(repo)
     }
+
+    async fn fetch_prs_for_a_repo(&self, owner: String, repo: String) -> Result<Vec<PullRequest>, reqwest::Error>{
+        let client = Client::builder().user_agent("FallOut").build()?;
+        let url = format!("https://api.github.com/repos/{owner}/{repo}/pulls?state=all");
+        let response = client.get(url).bearer_auth(&self.token).send().await?;
+        let prs_results: Vec<PullRequest> = response.json().await?;
+        Ok(prs_results)
+    }
 }
 
 extern crate dotenv_codegen;
@@ -115,10 +143,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     let repos: Vec<Repository> = github_fetcher.fetch_all_owner_repos().await?;
 
     let owner = "EleisonC".to_string();
-    let repo = "NestApplication".to_string();    
-    let one_repo: Repository = github_fetcher.fetch_specific_repo(repo, owner).await?;
+    let repo = "fetchRust".to_string();
+    let one_repo: Repository = github_fetcher.fetch_specific_repo(repo.clone(), owner.clone()).await?;
+
+    let prs_results: Vec<PullRequest> = github_fetcher.fetch_prs_for_a_repo(owner, repo).await?;
 
     println!("We have over: {:#?}", repos.len());
     println!("here is the response: {one_repo:#?}");
+    println!("Here are PRS: {prs_results:#?}");
     Ok(())
 }
