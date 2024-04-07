@@ -101,9 +101,10 @@ use dotenv_codegen::dotenv;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>>{
     println!("Hello, world!");
-    let url = format!("https://api.github.com/user/repos?type=owner");
-    let token = dotenv!("GITHUB_TOKEN").to_owned();
-    let github_fetcher = Github_Instance::new(url, token);
+    let github_fetcher = Github_Instance::new(
+        "https://api.github.com/user/repos?type=owner".to_owned(),
+        dotenv!("GITHUB_TOKEN").to_owned()
+    );
     let repos: Vec<Repository> = github_fetcher.fetch_all_owner_repos().await?;
 
     println!("We have over: {:#?}", repos.len());
