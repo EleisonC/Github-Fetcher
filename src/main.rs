@@ -1,5 +1,5 @@
 use reqwest::Client;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 #[derive(Debug, Deserialize)]
 struct Repository {
     id: i64,
@@ -98,6 +98,28 @@ struct GithubInstance {
     token: String,
 }
 
+#[derive(Debug, Serialize)]
+struct NewGHIssue {
+    title: String,
+    body: String
+}
+
+#[derive(Debug, Deserialize)]
+struct GTIssueRes {
+    id: i64,
+    node_id: String,
+    url: String,
+    repository_url: String,
+    labels_url: String,
+    comments_url: String,
+    events_url: String,
+    html_url: String,
+    number: i32,
+    state: String,
+    title: String,
+    body: String,
+}
+
 impl GithubInstance {
     fn new(git_token: String) -> GithubInstance {
         GithubInstance {
@@ -122,13 +144,32 @@ impl GithubInstance {
         Ok(repo)
     }
 
-    async fn fetch_prs_for_a_repo(&self, owner: String, repo: String) -> Result<Vec<PullRequest>, reqwest::Error>{
+    async fn fetch_prs_for_a_repo(&self, owner: &String, repo: &String) -> Result<Vec<PullRequest>, reqwest::Error>{
         let client = Client::builder().user_agent("FallOut").build()?;
         let url = format!("https://api.github.com/repos/{owner}/{repo}/pulls?state=all");
         let response = client.get(url).bearer_auth(&self.token).send().await?;
         let prs_results: Vec<PullRequest> = response.json().await?;
         Ok(prs_results)
     }
+
+    async fn ct_a_github_issue_sp_repo(&self, owner: &String, repo: &String, issue: NewGHIssue) -> Result<GTIssueRes, reqwest::Error> {
+        let client = Client::builder().user_agent("MaxPayne").build()?;
+        let url = format!("https://api.github.com/repos/{owner}/{repo}/issues");
+        
+        let response = client.post(url).bearer_auth(&self.token).json(&issue).send().await?;
+        let issue_results: GTIssueRes = response.json().await?;
+        println!("Here is some code: {:#?}", issue_results);
+        Ok(issue_results)
+    }
+
+    async fn fetch_all_repo_issues(&self, owner: &String, repo: &String) -> Result<Vec<GTIssueRes>, reqwest::Error>{
+        let client = Client::builder().user_agent("MaxPayne").build()?;
+        let url = format!("https://api.github.com/repos/{owner}/{repo}/issues");
+
+        let response = client.get(url).bearer_auth(&self.token).send().await?;
+        let repo_issues: Vec<GTIssueRes> = response.json().await?;
+        Ok(repo_issues)
+    } 
 }
 
 extern crate dotenv_codegen;
@@ -146,10 +187,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     let repo = "fetchRust".to_string();
     let one_repo: Repository = github_fetcher.fetch_specific_repo(repo.clone(), owner.clone()).await?;
 
-    let prs_results: Vec<PullRequest> = github_fetcher.fetch_prs_for_a_repo(owner, repo).await?;
+    let prs_results: Vec<PullRequest> = github_fetcher.fetch_prs_for_a_repo(&owner, &repo).await?;
+    let new_issue = NewGHIssue {
+        title: "Second Issue I created".to_string(),
+        body: "This issue was create via a rust program".to_string()
+    };
+
+    let created_issue: GTIssueRes = github_fetcher.ct_a_github_issue_sp_repo(&owner, &repo, new_issue).await?;
+
+    let my_issues: Vec<GTIssueRes> = github_fetcher.fetch_all_repo_issues(&owner, &repo).await?;
 
     println!("We have over: {:#?}", repos.len());
     println!("here is the response: {one_repo:#?}");
     println!("Here are PRS: {prs_results:#?}");
+    println!("Well we have created our first issue: {:#?}", created_issue);
+    println!("This is all issues on the {repo}: {my_issues:#?}");
     Ok(())
 }
